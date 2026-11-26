@@ -10,6 +10,7 @@
 
 static struct termios old_term;
 static int rows = 1;
+static int row_start = 0;
 
 void restore_terminal(void)
 {
@@ -31,12 +32,18 @@ void redraw(const char *line, int len)
 
     int col = 0;
     int r = 1;
+    row_start = 0;
 
     for (int i = 0; i < len;)
     {
         if (line[i] == ' ')
         {
-            if (col == WIDTH) new_row(&col, &r);
+            if (col == WIDTH)
+            {
+                new_row(&col, &r);
+                row_start = i;
+            }
+
             putchar(' ');
             ++col;
             ++i;
@@ -47,11 +54,19 @@ void redraw(const char *line, int len)
         while (end < len && line[end] != ' ') ++end;
 
         if (col > 0 && col + end - i > WIDTH)
+        {
             new_row(&col, &r);
+            row_start = i;
+        }
 
         while (i < end)
         {
-            if (col == WIDTH) new_row(&col, &r);
+            if (col == WIDTH)
+            {
+                new_row(&col, &r);
+                row_start = i;
+            }
+
             putchar(line[i++]);
             ++col;
         }
@@ -111,7 +126,6 @@ int main(void)
         }
         if (n == 0) break;
 
-        //
         if (escape == 1)
         {
             if (c == '[' || c == 'O') escape = 2;
@@ -140,7 +154,7 @@ int main(void)
         }
         else if (c == old_term.c_cc[VKILL])
         {
-            len = 0;
+            len = row_start;
         }
         else if (c == 23) // Ctrl+W
         {
@@ -161,6 +175,7 @@ int main(void)
             printf("\r\n");
             len = 0;
             rows = 1;
+            row_start = 0;
             continue;
         }
         else if (isprint(c))
